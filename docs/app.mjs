@@ -1,4 +1,4 @@
-import { formatTime, inspectExit, MAX_BYTES, quoteSpread, readCapture } from './analysis.mjs';
+import { formatTime, inspectExit, MAX_BYTES, quoteSpread, readCapture } from './analysis.mjs?v=0.2.0';
 import { drawChart } from './chart.mjs';
 import { SAMPLE_CSV } from './sample.mjs';
 
