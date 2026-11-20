@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Inspect MT5 stop-loss exits against recorded Bid and Ask quotes.">
+  <title>SpreadTrace · MT5 execution review</title>
+  <link rel="stylesheet" href="./styles.css">
+  <script type="module" src="./app.mjs"></script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <a class="brand" href="./" aria-label="SpreadTrace home">
+        <span class="brand-mark" aria-hidden="true"><b></b><b></b><b></b></span>
+        SpreadTrace
+      </a>
+      <div class="topbar-actions">
+        <button type="button" class="quiet" id="sample">Load sample</button>
+        <label class="import" for="file">Open capture <span aria-hidden="true">↗</span></label>
+        <input class="visually-hidden" type="file" id="file" aria-label="Open capture CSV" accept=".csv,text/csv">
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <div class="heading">
+      <div>
+        <h1>Execution review</h1>
+        <p>Inspect MT5 exits against recorded Bid and Ask quotes.</p>
+      </div>
+      <div class="file-state" id="file-state" aria-live="polite"></div>
+    </div>
+    <p id="error" role="alert" hidden></p>
+
+    <section class="workbench" aria-label="Capture analysis">
+      <div class="chart-card panel">
+        <div class="panel-head">
+          <div>
+            <h2>Quote timeline</h2>
+            <p id="chart-context"></p>
+          </div>
+          <label class="control">Window
+            <select id="window">
+              <option value="2">±2 seconds</option>
+              <option value="10" selected>±10 seconds</option>
+              <option value="30">±30 seconds</option>
+              <option value="120">±2 minutes</option>
+            </select>
+          </label>
+        </div>
+        <div class="chart-legend" aria-label="Chart legend">
+          <span><i class="bid"></i>Bid</span>
+          <span><i class="ask"></i>Ask</span>
+          <span id="last-legend" hidden><i class="last"></i>Last</span>
+          <span><i class="stop"></i>Stop</span>
+          <span><i class="fill"></i>Fill</span>
+        </div>
+        <div class="chart-wrap" id="chart-wrap">
+          <canvas id="chart" role="img" aria-label="Price timeline for the selected exit. Use the quote scrubber for exact prices."></canvas>
+          <p class="chart-empty" id="chart-empty" hidden></p>
+        </div>
+        <div class="scrubber">
+          <label for="scrub">Inspect quote</label>
+          <input id="scrub" type="range" min="0" max="1" value="0">
+          <output id="quote" for="scrub"></output>
+        </div>
+      </div>
+
+      <aside class="exit-card panel" aria-label="Exit details">
+        <div class="panel-head">
+          <div>
+            <h2>Exit details</h2>
+            <p id="exit-context"></p>
+          </div>
+        </div>
+        <div class="exit-body" id="exit-body">
+          <label class="control">Recorded exit
+            <select id="exit"></select>
+          </label>
+          <div class="verdict" id="verdict">
+            <strong id="verdict-title"></strong>
+            <p id="verdict-text"></p>
+          </div>
+          <dl class="metrics">
+            <div><dt>Stop level</dt><dd id="stop-level"></dd></div>
+            <div><dt>Fill price</dt><dd id="fill-price"></dd></div>
+            <div><dt>Spread before fill</dt><dd id="spread-before"></dd></div>
+            <div><dt>Peak spread in window</dt><dd id="spread-peak"></dd></div>
+          </dl>
+          <label class="control">Price to check against stop
+            <select id="reference">
+              <option value="auto">Auto</option>
+              <option value="bid">Bid</option>
+              <option value="ask">Ask</option>
+              <option value="last">Last</option>
+            </select>
+          </label>
+        </div>
+        <p class="empty-note" id="empty-note" hidden>Keep the recorder running through an exit, then reopen the capture here.</p>
+      </aside>
+
+      <section class="panel nearest" aria-label="Quotes immediately around fill">
+        <div class="panel-head">
+          <div>
+            <h2>Quotes around the fill</h2>
+            <p id="quote-context"></p>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th scope="col">Quote</th><th scope="col">Recorded time</th><th scope="col">Offset</th>
+              <th scope="col">Bid</th><th scope="col">Ask</th><th scope="col" id="last-column" hidden>Last</th><th scope="col">Spread</th></tr></thead>
+            <tbody id="nearest"></tbody>
+          </table>
+        </div>
+      </section>
+    </section>
+
+    <footer>
+      <span>Files are processed in your browser. Times use the capture clock.</span>
+      <a id="download" download="spreadtrace-sample.csv">Download sample CSV</a>
+    </footer>
+  </main>
+</body>
+</html>
