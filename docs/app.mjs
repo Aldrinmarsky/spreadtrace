@@ -20,6 +20,8 @@ function set(id, text) {
 }
 
 const price = (value) => value == null ? '—' : value.toFixed(decimalPlaces);
+const medianPrice = (value) => value == null ? '—' : value.toFixed(decimalPlaces + 1).replace(/0$/, '');
+const priceLabels = { bid: 'Bid', ask: 'Ask', last: 'Last' };
 const reasonLabel = (reason) => ({
   DEAL_REASON_SL: 'Stop loss', DEAL_REASON_TP: 'Take profit', DEAL_REASON_SO: 'Stop out',
   DEAL_REASON_CLIENT: 'Desktop', DEAL_REASON_MOBILE: 'Mobile', DEAL_REASON_WEB: 'Web',
@@ -47,7 +49,7 @@ function load(csv, name, isSample) {
 }
 
 function renderVerdict() {
-  const side = { bid: 'Bid', ask: 'Ask', last: 'Last' }[report.side];
+  const side = priceLabels[report.side];
   const crossing = report.crossing;
   const summary = {
     crossed: [`${side} reached the stop`,
@@ -61,6 +63,59 @@ function renderVerdict() {
   }[report.state];
   set('verdict-title', summary[0]);
   set('verdict-text', summary[1]);
+  const chartSide = priceLabels[report.chartSide];
+  const chartEvidence = {
+    true: `Recorded ${chartSide} also touched the stop before or at the fill timestamp.`,
+    false: `No recorded ${chartSide} quote touched the stop before or at the fill timestamp.`,
+  }[report.chartTouchObserved];
+  $('chart-evidence').hidden = !chartEvidence;
+  set('chart-evidence', chartEvidence ?? '');
+}
+
+function renderMetrics() {
+  const stopToFill = report.stopToFill;
+  set('stop-level', price(exit.stop));
+  set('fill-price', price(exit.fill));
+  set('stop-to-fill', price(stopToFill));
+  const stopNote = stopToFill === null
+    ? (exit.reason === 'DEAL_REASON_SL' ? 'No comparable stop price' : 'Stop-loss exits only')
+    : (stopToFill === 0 ? 'Filled at stop' : stopToFill > 0 ? 'Above the stop' : 'Below the stop');
+  set('stop-to-fill-note', stopNote);
+  set('spread-before', price(quoteSpread(report.before)));
+  set('spread-median', medianPrice(report.medianSpread));
+  const usable = report.spreadSampleCount.toLocaleString();
+  const total = report.beforeQuoteCount.toLocaleString();
+  const sampleLabel = report.spreadSampleCount === report.beforeQuoteCount ? usable : `${usable} of ${total}`;
+  set('spread-sample', `${sampleLabel} pre-fill ${report.beforeQuoteCount === 1 ? 'quote' : 'quotes'} with usable spread`);
+  set('spread-peak', price(report.peak));
+
+  const notes = [];
+  if (report.peakMultiple !== null) {
+    notes.push(`${Number(report.peakMultiple.toFixed(2)).toLocaleString()}× pre-fill median`);
+  }
+  if (report.peakQuote) {
+    const offset = report.peakQuote.time - exit.time;
+    notes.push(offset === 0 ? 'at fill timestamp'
+      : `${Math.abs(offset).toLocaleString()} ms ${offset < 0 ? 'before' : 'after'} fill`);
+  }
+  set('spread-peak-note', notes.join(' · '));
+}
+
+function renderCoverage() {
+  const notes = [];
+  if (report.before && report.after) {
+    const gap = report.after.time - report.before.time;
+    notes.push(`${gap.toLocaleString()} ms between the nearest quotes on either side of the fill.`);
+  } else if (!report.before && !report.after) {
+    notes.push('No quotes strictly before or after the fill in this window.');
+  } else {
+    notes.push(`No quote ${report.before ? 'after' : 'before'} the fill in this window.`);
+  }
+  if (report.sameTimeCount) {
+    const count = report.sameTimeCount;
+    notes.push(`${count.toLocaleString()} ${count === 1 ? 'quote shares' : 'quotes share'} the fill timestamp. Their order relative to the fill is unknown. Use the scrubber to view them.`);
+  }
+  set('quote-context', notes.join(' '));
 }
 
 function renderNearest() {
@@ -75,7 +130,7 @@ function renderNearest() {
     row.append(heading);
     const offset = quote ? quote.time - exit.time : null;
     const delta = offset === null ? '—' : `${offset > 0 ? '+' : ''}${offset} ms`;
-    for (const value of [quote ? formatTime(quote.time) : '—', delta, price(quote?.bid),
+    for (const value of [quote ? formatTime(quote.time) : 'No quote in window', delta, price(quote?.bid),
       price(quote?.ask), ...(showLast ? [price(quote?.last)] : []), price(quoteSpread(quote))]) {
       row.insertCell().textContent = value;
     }
@@ -122,19 +177,16 @@ function render() {
   $('chart').hidden = count === 0;
   $('chart-context').textContent = `${capture.symbol} · MT5 chart price: ${capture.chartPrice === 'BID' ? 'Bid' : 'Last'}`;
   $('exit-context').textContent = exit ? `Deal #${exit.id} · ${exit.side} fill` : 'No exits in this capture';
-  $('quote-context').textContent = report?.sameTimeCount
-    ? `${report.sameTimeCount} quote(s) share the fill timestamp and are excluded from the before/after rows.`
-    : 'Nearest recorded quotes strictly before and after the fill.';
   set('chart-empty', exit ? 'No quotes in this window.' : 'A recorded exit will appear here.');
   scrubber.disabled = count < 2;
   scrubber.max = Math.max(1, count - 1);
   scrubber.value = Math.max(0, report?.quotes.indexOf(report.before) ?? 0);
   if (exit) {
     renderVerdict();
-    set('stop-level', price(exit.stop));
-    set('fill-price', price(exit.fill));
-    set('spread-before', price(quoteSpread(report.before)));
-    set('spread-peak', price(report.peak));
+    renderMetrics();
+    renderCoverage();
+  } else {
+    set('quote-context', 'Select a capture with an exit to see the surrounding quotes.');
   }
   renderNearest();
   inspectQuote();

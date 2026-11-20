@@ -70,7 +70,7 @@
       <aside class="exit-card panel" aria-label="Exit details">
         <div class="panel-head">
           <div>
-            <h2>Exit details</h2>
+            <h2>Exit report</h2>
             <p id="exit-context"></p>
           </div>
         </div>
@@ -78,15 +78,18 @@
           <label class="control">Recorded exit
             <select id="exit"></select>
           </label>
-          <div class="verdict" id="verdict">
+          <div class="verdict" id="verdict" aria-live="polite">
             <strong id="verdict-title"></strong>
             <p id="verdict-text"></p>
+            <p id="chart-evidence" hidden></p>
           </div>
           <dl class="metrics">
             <div><dt>Stop level</dt><dd id="stop-level"></dd></div>
             <div><dt>Fill price</dt><dd id="fill-price"></dd></div>
+            <div><dt>Stop-to-fill difference</dt><dd id="stop-to-fill"></dd><dd class="metric-note" id="stop-to-fill-note"></dd></div>
             <div><dt>Spread before fill</dt><dd id="spread-before"></dd></div>
-            <div><dt>Peak spread in window</dt><dd id="spread-peak"></dd></div>
+            <div><dt>Median spread before fill</dt><dd id="spread-median"></dd><dd class="metric-note" id="spread-sample"></dd></div>
+            <div><dt>Peak spread in window</dt><dd id="spread-peak"></dd><dd class="metric-note" id="spread-peak-note"></dd></div>
           </dl>
           <label class="control">Price to check against stop
             <select id="reference">
@@ -119,7 +122,7 @@
 
     <footer>
       <span>Files are processed in your browser. Times use the capture clock.</span>
-      <a id="download" download="spreadtrace-sample.csv">Download sample CSV</a>
+      <span class="footer-links"><span>v0.2.0</span><a id="download" download="spreadtrace-sample.csv">Download sample CSV</a></span>
     </footer>
   </main>
 </body>

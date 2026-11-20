@@ -94,6 +94,14 @@ export function quoteSpread(quote) {
   return quote.ask - quote.bid;
 }
 
+function median(values) {
+  if (!values.length) return null;
+  values.sort((a, b) => a - b);
+  const middle = Math.floor(values.length / 2);
+  if (values.length % 2) return values[middle];
+  return (values[middle - 1] + values[middle]) / 2;
+}
+
 export function inspectExit(capture, exit, seconds, reference = 'auto') {
   const from = exit.time - seconds * 1000;
   const to = exit.time + seconds * 1000;
@@ -103,28 +111,50 @@ export function inspectExit(capture, exit, seconds, reference = 'auto') {
   const afterExit = lowerBound(quotes, exit.time + 1);
   const before = quotes[atExit - 1];
   const after = quotes[afterExit];
+  const beforeSpreads = [];
   let peak = null;
-  for (const quote of quotes) {
+  let peakQuote;
+  for (const [index, quote] of quotes.entries()) {
     const spread = quoteSpread(quote);
-    if (spread !== null && (peak === null || spread > peak)) peak = spread;
+    if (spread === null) continue;
+    if (index < atExit) beforeSpreads.push(spread);
+    if (peak === null || spread > peak) {
+      peak = spread;
+      peakQuote = quote;
+    }
   }
+  const medianSpread = median(beforeSpreads);
+  const peakMultiple = medianSpread > 0 ? peak / medianSpread : null;
   const automaticSide = exit.side === 'Buy' ? 'ask' : 'bid';
+  const chartSide = capture.chartPrice.toLowerCase();
   const side = reference === 'auto' ? (capture.chartPrice === 'LAST' ? 'last' : automaticSide) : reference;
+  const hasStopExit = exit.reason === 'DEAL_REASON_SL' && exit.entry === 'DEAL_ENTRY_OUT' && exit.stop !== null;
+  const stopToFill = hasStopExit ? exit.fill - exit.stop : null;
   let state;
   let crossing;
+  let chartTouchObserved;
   if (exit.reason !== 'DEAL_REASON_SL') {
     state = 'other';
-  } else if (exit.entry !== 'DEAL_ENTRY_OUT' || exit.stop === null) {
+  } else if (!hasStopExit) {
     state = 'unavailable';
   } else {
-    const candidateQuotes = quotes.slice(0, afterExit).filter((quote) => quote[side] !== null);
+    const throughExit = quotes.slice(0, afterExit);
+    const reachesStop = (value) => exit.side === 'Buy' ? value >= exit.stop : value <= exit.stop;
+    const candidateQuotes = throughExit.filter((quote) => quote[side] !== null);
     crossing = candidateQuotes.find((quote) =>
-      exit.side === 'Buy' ? quote[side] >= exit.stop : quote[side] <= exit.stop);
+      reachesStop(quote[side]));
+    if (chartSide !== side) {
+      const chartQuotes = throughExit.filter((quote) => quote[chartSide] !== null);
+      if (chartQuotes.length) chartTouchObserved = chartQuotes.some((quote) => reachesStop(quote[chartSide]));
+    }
     if (crossing) state = crossing.time === exit.time ? 'same-time' : 'crossed';
     else state = candidateQuotes.length ? 'unseen' : 'missing';
   }
-  return { from, to, quotes, before, after, peak, side, state, crossing,
-    sameTimeCount: afterExit - atExit };
+  return {
+    from, to, quotes, before, after, peak, peakQuote, medianSpread, peakMultiple,
+    spreadSampleCount: beforeSpreads.length, beforeQuoteCount: atExit, stopToFill,
+    chartSide, chartTouchObserved, side, state, crossing, sameTimeCount: afterExit - atExit,
+  };
 }
 
 export function formatTime(time) {

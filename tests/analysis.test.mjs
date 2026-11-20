@@ -23,6 +23,8 @@ test('sample reports an Ask touch before the short exit while Bid stays below th
   assert.equal(report.before.time - capture.exits[0].time, -180);
   assert.equal(report.after.time - capture.exits[0].time, 180);
   assert.equal(report.peak.toFixed(2), '0.35');
+  assert.equal(report.chartTouchObserved, false);
+  assert.equal(report.stopToFill.toFixed(2), '0.12');
 });
 
 test('sell exit selects Bid and includes equality, even if only Bid is present', () => {
@@ -81,4 +83,47 @@ test('unavailable or crossed quotes do not contribute to spread statistics', () 
   assert.equal(quoteSpread({ bid: 4, ask: 3 }), null);
   assert.equal(quoteSpread({ bid: null, ask: 3 }), null);
   assert.equal(quoteSpread({ bid: 3, ask: 3 }), 0);
+});
+
+test('median uses only valid pre-fill spreads inside the window and peak can be after the fill', () => {
+  const capture = readCapture(csv(
+    quote(-2001, 100, 150), quote(-400, 100, 101), quote(-300, 101, 100),
+    quote(-200, 100, 102), quote(-100, '', 105), quote(0, 100, 103),
+    quote(100, 100, 106), quote(2001, 100, 160), deal('BUY', 100),
+  ));
+  const report = inspect(capture);
+  assert.equal(report.medianSpread, 1.5);
+  assert.equal(report.beforeQuoteCount, 4);
+  assert.equal(report.spreadSampleCount, 2);
+  assert.equal(report.peak, 6);
+  assert.equal(report.peakMultiple, 4);
+  assert.equal(report.peakQuote.time, timestamp + 100);
+  assert.equal(report.sameTimeCount, 1);
+});
+
+test('no baseline or zero median leaves the peak multiple unavailable', () => {
+  const noBaseline = inspect(readCapture(csv(quote(0, 100, 110), deal('BUY', 100))));
+  assert.equal(noBaseline.medianSpread, null);
+  assert.equal(noBaseline.peak, 10);
+  assert.equal(noBaseline.peakMultiple, null);
+  assert.equal(noBaseline.before, undefined);
+  assert.equal(noBaseline.after, undefined);
+  const zero = inspect(readCapture(csv(quote(-100, 100, 100), quote(0, 100, 110), deal('BUY', 100))));
+  assert.equal(zero.medianSpread, 0);
+  assert.equal(zero.peakMultiple, null);
+});
+
+test('stop-to-fill uses a signed difference only for usable stop-loss exits', () => {
+  assert.equal(inspect(readCapture(csv(deal('SELL', 100.25)))).stopToFill.toFixed(2), '-0.20');
+  assert.equal(inspect(readCapture(csv(deal('BUY', 100.05)))).stopToFill, 0);
+  assert.equal(inspect(readCapture(csv(deal('BUY', 100, 'OUT_BY')))).stopToFill, null);
+  assert.equal(inspect(readCapture(csv(deal('BUY', 100, 'OUT', 'CLIENT')))).stopToFill, null);
+});
+
+test('chart evidence requires a usable chart quote by the fill timestamp', () => {
+  const bothTouched = inspect(readCapture(csv(quote(-20, 101, 102), deal('BUY', 100))));
+  assert.equal(bothTouched.chartTouchObserved, true);
+  const noBid = inspect(readCapture(csv(quote(0, '', 102), quote(1, 101, 102), deal('BUY', 100))));
+  assert.equal(noBid.state, 'same-time');
+  assert.equal(noBid.chartTouchObserved, undefined);
 });

@@ -2,11 +2,11 @@
 
 Inspect a MetaTrader 5 exit against the Bid and Ask quotes your terminal recorded.
 
-The fictional XAUUSD demo shows a short position with a stop at **2,680.00**. The highest Bid is **2,679.80**, the Ask reaches **2,680.15**, and the Buy fill is **2,680.12**. Use the quote timeline and the before/after table to see what the Bid chart alone leaves out.
+The fictional XAUUSD demo shows a short position with a stop at **2,680.00**. The highest Bid is **2,679.80**, the Ask reaches **2,680.15**, and the Buy fill is **2,680.12**. The exit report compares the **0.35** peak spread with the typical spread before the fill.
 
 ## Try the demo
 
-Run this from the repository root, then open [http://localhost:8000](http://localhost:8000).
+Open the [live demo](https://aldrinmarsky.github.io/spreadtrace/). To run it locally, use the command below from the repository root and open [http://localhost:8000](http://localhost:8000).
 
 ```sh
 python -m http.server 8000 --directory docs
@@ -26,8 +26,10 @@ For a first check, attach it to an active symbol in a demo account and verify th
 ## Read a report
 
 - **Window** shows quotes on either side of the exit, with the recorded stop and fill drawn on the timeline. The quote scrubber shows exact recorded values.
+- **Stop-to-fill difference** is the recorded fill price minus the recorded stop price for an ordinary stop-loss exit. A positive value means the fill was above the stop.
+- **Median spread before fill** uses the usable Bid/Ask pairs strictly before the fill in the selected window. **Peak spread in window** includes both sides of the fill. Its timestamp and multiple of the pre-fill median show when it occurred and how large it was relative to that sample. The multiple is unavailable when the median is zero or there are no usable pre-fill pairs.
 - **Price to check against stop** defaults to Ask for a Buy exit and Bid for a Sell exit on a Bid chart. A Last chart defaults to Last. Confirm the trigger convention for your instrument and override the reference when appropriate. MT5's [order documentation](https://www.metatrader5.com/en/terminal/help/trading/general_concept) describes the standard Bid/Ask checks and exchange exceptions.
-- **Quotes around the fill** uses the closest quote strictly before and strictly after the deal timestamp. Quotes sharing the deal's millisecond remain visible in the scrubber. Their order relative to the deal is unknown.
+- **Quotes around the fill** uses the closest quote strictly before and strictly after the deal timestamp, shows the time between them, and flags missing rows. Quotes sharing the deal's millisecond remain visible in the scrubber. Their order relative to the deal is unknown.
 - A recorded touch is evidence that a captured quote reached the stop level in the chosen window. The exit reason comes from the recorded deal. The terminal capture cannot show the broker's full execution sequence, an earlier stop level before a modification, or data the terminal did not receive.
 
 ## Capture format
