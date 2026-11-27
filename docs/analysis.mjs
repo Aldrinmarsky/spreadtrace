@@ -36,6 +36,7 @@ export function readCapture(csv) {
   const quotes = [];
   const exits = [];
   const tickets = new Set();
+  let history;
   let captureSymbol;
   let chartPrice;
   for (const [index, line] of lines.entries()) {
@@ -54,6 +55,15 @@ export function readCapture(csv) {
       if (kind === 'quote') {
         quotes.push({ time, bid: number(bid, 'Bid', true), ask: number(ask, 'Ask', true),
           last: number(last, 'Last', true) });
+      } else if (kind === 'history') {
+        if (history || !/^\d+$/.test(id) || !['returned', 'partial', 'empty', 'failed'].includes(reason)) {
+          throw new Error('Invalid historical export metadata');
+        }
+        const seconds = number(fill, 'historical export window');
+        if (!Number.isInteger(seconds) || seconds < 2 || seconds > 120) {
+          throw new Error('Invalid historical export window');
+        }
+        history = { id, time, status: reason, seconds };
       } else if (kind === 'deal') {
         if (!/^\d+$/.test(id) || !['DEAL_TYPE_BUY', 'DEAL_TYPE_SELL'].includes(side)) {
           throw new Error('Invalid deal ID or side');
@@ -75,7 +85,16 @@ export function readCapture(csv) {
   if (!captureSymbol) throw new Error('This capture has no records yet.');
   quotes.sort((a, b) => a.time - b.time);
   exits.sort((a, b) => b.time - a.time);
-  return { symbol: captureSymbol, chartPrice, quotes, exits };
+  if (history) {
+    const { time, id, status, seconds } = history;
+    const radius = seconds * 1000;
+    if (exits.length !== 1 || exits[0].id !== id || exits[0].time !== time ||
+        (['returned', 'partial'].includes(status) !== Boolean(quotes.length)) ||
+        (quotes.length && (quotes[0].time < time - radius || quotes.at(-1).time > time + radius))) {
+      throw new Error('Historical export metadata does not match its deal or quotes.');
+    }
+  }
+  return { symbol: captureSymbol, chartPrice, quotes, exits, history };
 }
 
 function lowerBound(rows, time) {

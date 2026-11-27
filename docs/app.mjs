@@ -1,12 +1,13 @@
-import { formatTime, inspectExit, MAX_BYTES, quoteSpread, readCapture } from './analysis.mjs?v=0.2.0';
+import { formatTime, inspectExit, MAX_BYTES, quoteSpread, readCapture } from './analysis.mjs?v=0.3.0';
 import { drawChart } from './chart.mjs';
-import { SAMPLE_CSV } from './sample.mjs';
+import { HISTORY_SAMPLE_CSV, SAMPLE_CSV } from './sample.mjs?v=0.3.0';
 
 const $ = (id) => document.getElementById(id);
 const fileInput = $('file');
 const exitSelect = $('exit');
 const windowSelect = $('window');
 const reference = $('reference');
+const liveWindows = Array.from(windowSelect.options, (option) => [Number(option.value), option.textContent]);
 const scrubber = $('scrub');
 let capture;
 let exit;
@@ -32,11 +33,32 @@ function fillDate(time) {
   return new Date(time).toISOString().slice(0, 10) + ' · ' + formatTime(time);
 }
 
-function load(csv, name, isSample) {
+function setHistoryStatus(history) {
+  const banner = $('history-status');
+  banner.hidden = !history;
+  if (!history) return;
+  const status = {
+    returned: 'MT5 returned ticks. Review the quote coverage around the fill.',
+    partial: 'MT5 returned ticks with a history error. Part of this window may be missing.',
+    empty: 'MT5 returned no ticks for this window. The recorded exit is available below.',
+    failed: 'MT5 could not retrieve ticks. The recorded exit is available below.',
+  }[history.status];
+  banner.dataset.limited = history.status !== 'returned';
+  banner.textContent = `Historical export · ±${history.seconds} seconds. ${status}`;
+}
+
+function load(csv, name) {
   const next = readCapture(csv);
+  const preferred = capture?.history ? 10 : Number(windowSelect.value);
   capture = next;
+  const radius = capture.history?.seconds;
+  const windows = liveWindows.filter(([seconds]) => !radius || seconds <= radius);
+  if (radius && windows.at(-1)[0] !== radius) windows.push([radius, `±${radius} seconds`]);
+  windowSelect.replaceChildren(...windows.map(([seconds, label]) => new Option(label, seconds)));
+  windowSelect.value = String(radius ?? preferred);
+  setHistoryStatus(capture.history);
   const count = capture.quotes.length;
-  set('file-state', [isSample ? 'Fictional sample' : name, capture.symbol,
+  set('file-state', [name, capture.symbol,
     `${count.toLocaleString()} recorded quote${count === 1 ? '' : 's'}`].join(' · '));
   $('error').hidden = true;
   reference.value = 'auto';
@@ -195,7 +217,11 @@ function render() {
 $('download').href = URL.createObjectURL(new Blob([SAMPLE_CSV], { type: 'text/csv' }));
 $('sample').addEventListener('click', () => {
   request++;
-  load(SAMPLE_CSV, '', true);
+  load(SAMPLE_CSV, 'Fictional sample');
+});
+$('history-sample').addEventListener('click', () => {
+  request++;
+  load(HISTORY_SAMPLE_CSV, 'Fictional historical sample');
 });
 fileInput.addEventListener('change', async () => {
   const file = fileInput.files[0];
@@ -205,7 +231,7 @@ fileInput.addEventListener('change', async () => {
   try {
     if (file.size > MAX_BYTES) throw new Error('Open a capture under 24 MiB. Make shorter recordings for review.');
     const csv = await file.text();
-    if (sequence === request) load(csv, file.name, false);
+    if (sequence === request) load(csv, file.name);
   } catch (error) {
     if (sequence !== request) return;
     set('error', `${file.name} · ${error.message}`);
@@ -215,4 +241,4 @@ fileInput.addEventListener('change', async () => {
 for (const control of [exitSelect, windowSelect, reference]) control.addEventListener('change', render);
 scrubber.addEventListener('input', inspectQuote);
 new ResizeObserver(redraw).observe($('chart-wrap'));
-load(SAMPLE_CSV, '', true);
+load(SAMPLE_CSV, 'Fictional sample');

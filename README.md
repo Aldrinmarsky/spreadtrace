@@ -23,6 +23,15 @@ The sample loads automatically. Use **Open capture** to review your own CSV. The
 
 For a first check, attach it to an active symbol in a demo account and verify that the header and quote rows appear. Once you have a demo exit, verify that the deal, fill time, and fill price match the account history. The browser report is covered by automated tests. MetaEditor compilation and live MT5 capture still need terminal verification.
 
+## Review a past MT5 exit
+
+1. Copy [SpreadTraceHistory.mq5](mt5/SpreadTraceHistory.mq5) into `MQL5/Scripts` in your MT5 data folder. Open it in MetaEditor and compile with **F7**.
+2. In the desktop terminal, sign in to the account that made the trade. Open **Toolbox → History**, switch to **Deals**, and find the closing **Deal** ticket. A position ID or order ticket will not identify the closing deal.
+3. Run **SpreadTraceHistory** from **Navigator → Scripts**. Enter the ticket as **DealTicket** and set the requested seconds on either side of the fill. The default is 30 seconds and the maximum is 120.
+4. Open the resulting `history_*.csv` from `MQL5/Files/SpreadTrace` in SpreadTrace. To try the report without MT5, expand **Review a past MT5 exit** on the demo and choose **Load historical sample**.
+
+The script uses the symbol and timestamps on record for the deal. It exports the deal even if the tick request fails or returns no ticks. A partial export contains the ticks MT5 returned with an error. A successful tick request still cannot establish complete quote coverage. See the [MQL5 tick-range documentation](https://www.mql5.com/en/docs/series/copyticksrange). The historical script only reads market data and account history, selects the symbol for data access, and writes the CSV locally.
+
 ## Read a report
 
 - **Window** shows quotes on either side of the exit, with the recorded stop and fill drawn on the timeline. The quote scrubber shows exact recorded values.
@@ -34,7 +43,7 @@ For a first check, attach it to an active symbol in a demo account and verify th
 
 ## Capture format
 
-Each UTF-8 CSV contains one symbol and two record types. `quote` rows have Bid, Ask, and Last where available. `deal` rows have the deal ticket, side, entry type, reason, fill price, reported stop, and volume. Times are raw MT5 millisecond values displayed on the capture clock. The report keeps ticket IDs as strings and treats distinct partial fills as distinct deals. A reversal's reported stop belongs to the original reversal order, so the report omits it from the stop comparison.
+Each UTF-8 CSV contains one symbol and two record types. `quote` rows have Bid, Ask, and Last where available. `deal` rows have the deal ticket, side, entry type, reason, fill price, reported stop, and volume. Times are raw MT5 millisecond values displayed on the capture clock. The report keeps ticket IDs as strings and treats distinct partial fills as distinct deals. A historical export adds one `history` row with the selected ticket and fill timestamp, retrieval status in `reason`, and the requested seconds on each side in `price`. Older live CSVs remain compatible. A reversal's reported stop belongs to the original reversal order, so the report omits it from the stop comparison.
 
 The recorder batches [terminal tick history](https://www.mql5.com/en/docs/series/copyticksrange) and listens for [added deals](https://www.mql5.com/en/docs/event_handlers/ontradetransaction) while attached. See [deal properties](https://www.mql5.com/en/docs/constants/tradingconstants/dealproperties) for field definitions. Captures can contain real prices and deal IDs. Keep your live CSVs outside the public repository.
 

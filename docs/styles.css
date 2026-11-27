@@ -102,3 +102,10 @@ footer { margin-top: 18px; display: flex; justify-content: space-between; gap: 1
   .quiet, .import { padding-inline: 7px; }
   .brand { gap: 5px; font-size: 16px; }
 }
+
+.history-tools, .history-status { margin-bottom: 16px; padding: 10px 14px; border: 1px solid var(--line); border-radius: 6px; }
+.history-tools summary { cursor: pointer; font-weight: 600; font-size: 13px; }
+.history-tools p { color: var(--muted); margin-top: 8px; font-size: 13px; }
+.history-tools > div { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin-top: 8px; font-size: 13px; }
+.history-status { color: var(--muted); font-size: 13px; }
+.history-status[data-limited="true"] { border-color: #6d593d; color: var(--amber); }

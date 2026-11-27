@@ -16,3 +16,8 @@ for (let index = -58; index <= 57; index++) {
 csv.push(['deal', start, 'XAUUSD', 'BID', '', '', '', '834001', 'DEAL_TYPE_BUY',
   'DEAL_ENTRY_OUT', 'DEAL_REASON_SL', '2680.12', '2680.00', '0.10'].join(','));
 export const SAMPLE_CSV = csv.join('\n') + '\n';
+
+// A historical export with quotes missing on the far side of the fill.
+const history = ['history', start, 'XAUUSD', 'BID', '', '', '', '834001', '', '',
+  'partial', 10, '', ''].join(',');
+export const HISTORY_SAMPLE_CSV = [csv[0], history, ...csv.slice(4, 60), csv.at(-1)].join('\n') + '\n';

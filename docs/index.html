@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="Inspect MT5 stop-loss exits against recorded Bid and Ask quotes.">
   <title>SpreadTrace · MT5 execution review</title>
-  <link rel="stylesheet" href="./styles.css?v=0.2.0">
-  <script type="module" src="./app.mjs?v=0.2.0"></script>
+  <link rel="stylesheet" href="./styles.css?v=0.3.0">
+  <script type="module" src="./app.mjs?v=0.3.0"></script>
 </head>
 <body>
   <header class="topbar">
@@ -32,6 +32,15 @@
       <div class="file-state" id="file-state" aria-live="polite"></div>
     </div>
     <p id="error" role="alert" hidden></p>
+    <details class="history-tools">
+      <summary>Review a past MT5 exit</summary>
+      <p>Run the historical export script with a closing deal ticket, then open the CSV here.</p>
+      <div>
+        <a href="https://github.com/Aldrinmarsky/spreadtrace#review-a-past-mt5-exit">MT5 setup instructions</a>
+        <button type="button" class="quiet" id="history-sample">Load historical sample</button>
+      </div>
+    </details>
+    <p id="history-status" class="history-status" role="status" hidden></p>
 
     <section class="workbench" aria-label="Capture analysis">
       <div class="chart-card panel">
@@ -67,7 +76,7 @@
         </div>
       </div>
 
-      <aside class="exit-card panel" aria-label="Exit details">
+      <aside class="exit-card panel" aria-label="Exit report">
         <div class="panel-head">
           <div>
             <h2>Exit report</h2>
@@ -122,7 +131,7 @@
 
     <footer>
       <span>Files are processed in your browser. Times use the capture clock.</span>
-      <span class="footer-links"><span>v0.2.0</span><a id="download" download="spreadtrace-sample.csv">Download sample CSV</a></span>
+      <span class="footer-links"><span>v0.3.0</span><a id="download" download="spreadtrace-sample.csv">Download sample CSV</a></span>
     </footer>
   </main>
 </body>

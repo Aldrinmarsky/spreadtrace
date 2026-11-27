@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { COLUMNS, inspectExit, quoteSpread, readCapture } from '../docs/analysis.mjs';
-import { SAMPLE_CSV } from '../docs/sample.mjs';
+import { HISTORY_SAMPLE_CSV, SAMPLE_CSV } from '../docs/sample.mjs';
 
 const timestamp = 1700000000000;
 const header = COLUMNS.join(',');
@@ -126,4 +126,37 @@ test('chart evidence requires a usable chart quote by the fill timestamp', () =>
   const noBid = inspect(readCapture(csv(quote(0, '', 102), quote(1, 101, 102), deal('BUY', 100))));
   assert.equal(noBid.state, 'same-time');
   assert.equal(noBid.chartTouchObserved, undefined);
+});
+
+const historyRow = (status, seconds = 30, id = '9007199254740999') =>
+  ['history', timestamp, 'TEST', 'BID', '', '', '', id, '', '', status, seconds, '', ''].join(',');
+
+test('historical sample flags partial coverage without inventing quotes after the fill', () => {
+  const capture = readCapture(HISTORY_SAMPLE_CSV);
+  assert.equal(capture.history.status, 'partial');
+  assert.equal(capture.history.seconds, 10);
+  const report = inspectExit(capture, capture.exits[0], capture.history.seconds);
+  assert.equal(report.state, 'crossed');
+  assert.equal(report.after, undefined);
+  assert.equal(report.sameTimeCount, 1);
+});
+
+test('historical exports with unavailable ticks still show the recorded exit', () => {
+  for (const status of ['empty', 'failed']) {
+    const capture = readCapture(csv(historyRow(status), deal('BUY', 100)));
+    assert.equal(capture.history.status, status);
+    assert.equal(capture.quotes.length, 0);
+    assert.equal(inspect(capture).state, 'missing');
+    assert.equal(inspect(capture).stopToFill.toFixed(2), '0.05');
+  }
+});
+
+test('historical metadata agrees with the exit and requested tick range', () => {
+  const closing = deal('BUY', 100);
+  const capture = readCapture(csv(historyRow('returned', 15), closing, quote(-15000, 99, 100)));
+  assert.equal(capture.history.seconds, 15);
+  assert.throws(() => readCapture(csv(historyRow('returned', 121), closing)), /Invalid historical export window/);
+  assert.throws(() => readCapture(csv(historyRow('returned'), closing)), /does not match/);
+  assert.throws(() => readCapture(csv(historyRow('partial', 5), closing, quote(5001, 99, 100))), /does not match/);
+  assert.throws(() => readCapture(csv(historyRow('empty', 5, '123'), closing)), /does not match/);
 });
